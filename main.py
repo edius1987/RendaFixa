@@ -379,27 +379,100 @@ def main(page: ft.Page):
             
             # Função auxiliar para extrair dados dos cards
             def get_card_data(card):
-                return [v.value.split(": ")[1] for v in card.content.content.controls[1:5]]
+                dados = {}
+                for control in card.content.content.controls[1:5]:
+                    texto = control.value
+                    if "Valor Investido" in texto:
+                        dados['valor_investido'] = texto.split(": ")[1]
+                    elif "Rendimento Bruto" in texto:
+                        partes = texto.split("\n")
+                        dados['rendimento_bruto'] = partes[0].split(": ")[1]
+                        if len(partes) > 1:
+                            for parte in partes[1:]:
+                                if "IOF" in parte:
+                                    dados['iof'] = parte.split(": ")[1]
+                                elif "Imposto de Renda" in parte:
+                                    ir_parts = parte.split(": ")[1].split(" ")
+                                    dados['ir'] = ir_parts[0]
+                                    if len(ir_parts) > 1:
+                                        dados['ir_percentual'] = ir_parts[1].strip("()")
+                    elif "Rendimento Líquido" in texto:
+                        dados['rendimento_liquido'] = texto.split(": ")[1]
+                    elif "Valor Total Líquido" in texto:
+                        dados['valor_total'] = texto.split(": ")[1]
+                return dados
             
             # Tabela de resultados
             pdf.set_font('Arial', '', 10)
-            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'Rendimento Líquido', 'Valor Total']
+            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'IOF', 'IR', 'Rendimento Líquido', 'Valor Total']
             
             # Larguras das colunas
-            col_widths = [40, 35, 35, 35, 35]
+            col_widths = [30, 30, 30, 20, 20, 30, 30]
             
             # Cabeçalho da tabela
             for i, header in enumerate(headers):
                 pdf.cell(col_widths[i], 10, header, 1)
             pdf.ln()
             
-            # Dados da tabela
+            # Dados da tabela e coleta de dados para o gráfico
+            dados_grafico = []
             for card, tipo in [(poupanca_card, "Poupança"), (cdb_card, "CDB/RDB"), (lci_card, "LCI/LCA")]:
-                valores = get_card_data(card)
+                dados = get_card_data(card)
                 pdf.cell(col_widths[0], 10, tipo, 1)
-                for i, valor in enumerate(valores):
-                    pdf.cell(col_widths[i+1], 10, valor, 1)
+                pdf.cell(col_widths[1], 10, dados['valor_investido'], 1)
+                pdf.cell(col_widths[2], 10, dados['rendimento_bruto'], 1)
+                pdf.cell(col_widths[3], 10, dados.get('iof', '-'), 1)
+                pdf.cell(col_widths[4], 10, dados.get('ir', '-'), 1)
+                pdf.cell(col_widths[5], 10, dados['rendimento_liquido'], 1)
+                pdf.cell(col_widths[6], 10, dados['valor_total'], 1)
                 pdf.ln()
+                
+                # Coletar dados para o gráfico
+                valor_investido = float(dados['valor_investido'].replace('R$ ', '').replace('.', '').replace(',', '.'))
+                rendimento_liquido = float(dados['rendimento_liquido'].replace('R$ ', '').replace('.', '').replace(',', '.'))
+                dados_grafico.append((tipo, (rendimento_liquido / valor_investido) * 100))
+            
+            pdf.ln(10)
+            
+            # Adicionar gráfico
+            pdf.set_font('Arial', 'B', 14)
+            pdf.cell(0, 10, 'Gráfico Comparativo de Rendimentos', 0, 1)
+            pdf.ln(5)
+            
+            # Configurações do gráfico
+            max_width = 190
+            bar_height = 10
+            spacing = 5
+            max_percent = max(percent for _, percent in dados_grafico)
+            
+            # Cores do gráfico (usando as cores personalizadas)
+            colors = {
+                'Poupança': COLORS['primary'],
+                'CDB/RDB': COLORS['secondary'],
+                'LCI/LCA': COLORS['accent']
+            }
+            
+            # Desenhar barras
+            y_position = pdf.get_y()
+            for tipo, percent in dados_grafico:
+                # Texto do tipo de investimento
+                pdf.set_font('Arial', '', 10)
+                pdf.text(10, y_position + bar_height/2, f"{tipo}:")
+                
+                # Barra de progresso
+                bar_width = (percent / max_percent) * 150
+                
+                # Converter cor hex para RGB
+                cor_hex = colors[tipo].lstrip('#')
+                r, g, b = tuple(int(cor_hex[i:i+2], 16) for i in (0, 2, 4))
+                pdf.set_fill_color(r, g, b)
+                
+                pdf.rect(50, y_position, bar_width, bar_height, 'F')
+                
+                # Percentual
+                pdf.text(50 + bar_width + 5, y_position + bar_height/2, f"{percent:.2f}%")
+                
+                y_position += bar_height + spacing
             
             # Salvar PDF
             filename = f'simulacao_investimentos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
