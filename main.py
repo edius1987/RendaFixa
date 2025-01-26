@@ -133,20 +133,82 @@ def main(page: ft.Page):
     # Configuração do tema
     page.bgcolor = COLORS['background']
     
-    # AppBar personalizada
+    # Criar o chart_dialog no início da função main
+    chart_dialog = None
+    chart = None
+
+    def create_chart():
+        return ft.Container(
+            content=ft.Column([
+                ft.Text("Comparativo de Rendimentos", size=20, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("Poupança", color=COLORS['primary']),
+                            ft.ProgressBar(
+                                value=0,
+                                color=COLORS['primary'],
+                                bgcolor=ft.colors.GREY_200,
+                                height=30,
+                            ),
+                            ft.Text("0%", text_align=ft.TextAlign.RIGHT),
+                        ]),
+                        expand=True,
+                    ),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("CDB/RDB", color=COLORS['secondary']),
+                            ft.ProgressBar(
+                                value=0,
+                                color=COLORS['secondary'],
+                                bgcolor=ft.colors.GREY_200,
+                                height=30,
+                            ),
+                            ft.Text("0%", text_align=ft.TextAlign.RIGHT),
+                        ]),
+                        expand=True,
+                    ),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("LCI/LCA", color=COLORS['accent']),
+                            ft.ProgressBar(
+                                value=0,
+                                color=COLORS['accent'],
+                                bgcolor=ft.colors.GREY_200,
+                                height=30,
+                            ),
+                            ft.Text("0%", text_align=ft.TextAlign.RIGHT),
+                        ]),
+                        expand=True,
+                    ),
+                ]),
+            ]),
+            padding=20,
+            bgcolor=ft.colors.WHITE,
+        )
+
+    # AppBar personalizada com ícone
     page.appbar = ft.AppBar(
         leading=ft.Image(
-            src="/images/favicon.png",
+            src="images/icon.png",  # Caminho para o ícone
             width=40,
             height=40,
+            fit=ft.ImageFit.CONTAIN,
         ),
         leading_width=40,
-        title=ft.Text("Calculadora de Renda Fixa", size=20, weight=ft.FontWeight.BOLD),
+        title=ft.Row([
+            ft.Text("Calculadora de Renda Fixa", 
+                   size=20, 
+                   weight=ft.FontWeight.BOLD,
+                   color=ft.Colors.WHITE),
+        ]),
         center_title=False,
         bgcolor=COLORS['primary'],
-        color=ft.Colors.WHITE,
     )
-    
+
+    # Criar o chart no início
+    chart = create_chart()
+
     calc = FinanceCalculator()
     
     # Campos de entrada
@@ -260,141 +322,190 @@ def main(page: ft.Page):
     cdb_card = create_result_card("CDB / RDB", ft.Icons.ACCOUNT_BALANCE)
     lci_card = create_result_card("LCI / LCA", ft.Icons.ACCOUNT_BALANCE_WALLET)
 
-    def create_chart():
-        return ft.Container(
-            content=ft.Column([
-                ft.Text("Comparativo de Rendimentos", size=20, weight=ft.FontWeight.BOLD),
-                ft.Row([
-                    ft.Container(
-                        content=ft.Column([
-                            ft.Text("Poupança", color=ft.Colors.AMBER),
-                            ft.ProgressBar(
-                                value=0,
-                                color=ft.Colors.AMBER,
-                                bgcolor=ft.Colors.AMBER_100,
-                                height=30,
-                            ),
-                            ft.Text("0%", text_align=ft.TextAlign.RIGHT),
-                        ]),
-                        expand=True,
-                    ),
-                    ft.Container(
-                        content=ft.Column([
-                            ft.Text("CDB/RDB", color=ft.Colors.BLUE),
-                            ft.ProgressBar(
-                                value=0,
-                                color=ft.Colors.BLUE,
-                                bgcolor=ft.Colors.BLUE_100,
-                                height=30,
-                            ),
-                            ft.Text("0%", text_align=ft.TextAlign.RIGHT),
-                        ]),
-                        expand=True,
-                    ),
-                    ft.Container(
-                        content=ft.Column([
-                            ft.Text("LCI/LCA", color=ft.Colors.GREEN),
-                            ft.ProgressBar(
-                                value=0,
-                                color=ft.Colors.GREEN,
-                                bgcolor=ft.Colors.GREEN_100,
-                                height=30,
-                            ),
-                            ft.Text("0%", text_align=ft.TextAlign.RIGHT),
-                        ]),
-                        expand=True,
-                    ),
-                ]),
-            ]),
-            padding=20,
-            border=ft.border.all(1, ft.Colors.GREY_400),
-        )
-
-    chart = create_chart()
-    chart_dialog = ft.AlertDialog(
-        title=ft.Text("Comparativo de Rendimentos"),
-        content=chart,
-        actions=[
-            ft.TextButton("Fechar", on_click=lambda e: close_chart_dialog(e))
-        ],
-    )
-
-    def close_chart_dialog(e):
-        chart_dialog.open = False
-        page.update()
-
-    def update_chart(poupanca: float, cdb: float, lci: float):
-        # Atualiza as barras de progresso e percentuais
-        chart.content.controls[1].controls[0].content.controls[1].value = poupanca/100
-        chart.content.controls[1].controls[0].content.controls[2].value = f"{poupanca:.2f}%"
+    def update_chart(poupanca_perc: float, cdb_perc: float, lci_perc: float):
+        max_perc = max(poupanca_perc, cdb_perc, lci_perc)
         
-        chart.content.controls[1].controls[1].content.controls[1].value = cdb/100
-        chart.content.controls[1].controls[1].content.controls[2].value = f"{cdb:.2f}%"
+        chart.content.controls[1].controls[0].content.controls[1].value = poupanca_perc / max_perc
+        chart.content.controls[1].controls[0].content.controls[2].value = f"{poupanca_perc:.2f}%"
         
-        chart.content.controls[1].controls[2].content.controls[1].value = lci/100
-        chart.content.controls[1].controls[2].content.controls[2].value = f"{lci:.2f}%"
+        chart.content.controls[1].controls[1].content.controls[1].value = cdb_perc / max_perc
+        chart.content.controls[1].controls[1].content.controls[2].value = f"{cdb_perc:.2f}%"
+        
+        chart.content.controls[1].controls[2].content.controls[1].value = lci_perc / max_perc
+        chart.content.controls[1].controls[2].content.controls[2].value = f"{lci_perc:.2f}%"
         
         chart.update()
 
     def show_chart_dialog(e):
-        page.overlay.append(chart_dialog)
-        chart_dialog.open = True
+        try:
+            chart_dialog = ft.AlertDialog(
+                content=chart,
+                title=ft.Text("Comparativo de Rendimentos"),
+                actions=[
+                    ft.TextButton("Fechar", on_click=lambda e: close_dialog(e, chart_dialog))
+                ],
+            )
+            page.dialog = chart_dialog
+            chart_dialog.open = True
+            page.update()
+        except Exception as e:
+            show_snack_bar(page, f"Erro ao mostrar gráfico: {str(e)}")
+
+    def calculate_gross_up(e):
+        try:
+            if not prazo.value or not taxa_di.value or not taxa_cdb.value or not taxa_lci.value:
+                raise ValueError("Preencha os campos de prazo e taxas")
+
+            dias = int(prazo.value)
+            if tipo_prazo.value == "meses":
+                dias = dias * 30
+            elif tipo_prazo.value == "anos":
+                dias = dias * 365
+
+            # Criar instância do calculador
+            calc = FinanceCalculator()
+            
+            # Obter alíquota de IR
+            ir_rate = calc.get_index_ir(dias) / 100
+            cdb_rate = float(taxa_cdb.value.replace(',', '.'))
+            lci_rate = float(taxa_lci.value.replace(',', '.'))
+
+            # Calcular taxas equivalentes
+            lci_equivalent = cdb_rate * (1 - ir_rate)
+            cdb_equivalent = lci_rate / (1 - ir_rate)
+
+            # Mostrar resultado em um diálogo
+            gross_up_dialog = ft.AlertDialog(
+                title=ft.Text("Análise de Taxas Equivalentes (Gross up)"),
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text(f"Alíquota IR: {ir_rate*100:.1f}%"),
+                        ft.Divider(),
+                        ft.Text("Taxa equivalente LCI/LCA:"),
+                        ft.Text(
+                            f"{lci_equivalent:.2f}% do CDI",
+                            size=20,
+                            weight=ft.FontWeight.BOLD,
+                            color=COLORS['primary']
+                        ),
+                        ft.Text(
+                            "(Taxa que a LCI/LCA precisaria ter para igualar o CDB)",
+                            size=12,
+                            color=ft.colors.GREY_600
+                        ),
+                        ft.Divider(),
+                        ft.Text("Taxa equivalente CDB:"),
+                        ft.Text(
+                            f"{cdb_equivalent:.2f}% do CDI",
+                            size=20,
+                            weight=ft.FontWeight.BOLD,
+                            color=COLORS['primary']
+                        ),
+                        ft.Text(
+                            "(Taxa que o CDB precisaria ter para igualar a LCI/LCA)",
+                            size=12,
+                            color=ft.colors.GREY_600
+                        ),
+                    ]),
+                    padding=20,
+                ),
+                actions=[
+                    ft.TextButton("Fechar", on_click=lambda e: close_dialog(e, gross_up_dialog))
+                ],
+            )
+
+            page.dialog = gross_up_dialog
+            gross_up_dialog.open = True
+            page.update()
+
+        except ValueError as ve:
+            show_snack_bar(page, str(ve))
+        except Exception as e:
+            show_snack_bar(page, f"Erro no cálculo: {str(e)}")
+
+    def close_dialog(e, dialog):
+        dialog.open = False
         page.update()
 
-    def export_csv():
+    def show_snack_bar(page: ft.Page, message: str):
+        snack_bar = ft.SnackBar(content=ft.Text(message))
+        page.overlay.append(snack_bar)
+        snack_bar.open = True
+        page.update()
+
+    def save_csv_file(e):
         try:
-            with open('simulacao_investimentos.csv', 'w', encoding='utf-8') as f:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_path = os.path.join(os.path.expanduser("~"), f"simulacao_investimentos_{timestamp}.csv")
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.write("Tipo,Valor Investido,Rendimento Bruto,IOF,IR,Rendimento Líquido,Valor Total\n")
                 for card, tipo in [(poupanca_card, "Poupança"), (cdb_card, "CDB/RDB"), (lci_card, "LCI/LCA")]:
                     valores = [v.value.split(": ")[1] for v in card.content.content.controls[1:5]]
                     f.write(f"{tipo},{','.join(valores)}\n")
-            page.snack_bar = ft.SnackBar(content=ft.Text("Arquivo CSV gerado com sucesso!"))
-            page.snack_bar.open = True
+            
+            # Mostrar diálogo de sucesso
+            success_dialog = ft.AlertDialog(
+                title=ft.Text("Arquivo Salvo com Sucesso"),
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("O arquivo CSV foi salvo em:"),
+                        ft.Text(file_path, selectable=True),  # Text com seleção habilitada
+                        ft.Text("Clique no caminho acima para copiar.", size=12, color=ft.colors.GREY_600),
+                    ]),
+                    padding=20,
+                ),
+                actions=[
+                    ft.TextButton("OK", on_click=lambda e: close_dialog(e, success_dialog))
+                ],
+            )
+            
+            page.dialog = success_dialog
+            success_dialog.open = True
             page.update()
+            
         except Exception as e:
-            page.snack_bar = ft.SnackBar(content=ft.Text(f"Erro ao gerar CSV: {str(e)}"))
-            page.snack_bar.open = True
-            page.update()
+            show_snack_bar(page, f"Erro ao salvar CSV: {str(e)}")
 
-    def export_pdf():
+    def save_pdf_file(e):
         try:
-            pdf = FPDF(orientation='L')  # 'L' para paisagem (landscape)
+            # Gerar nome do arquivo automaticamente
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_path = os.path.join(os.path.expanduser("~"), f"simulacao_investimentos_{timestamp}.pdf")
+            
+            # Criar instância do calculador
+            calc = FinanceCalculator()
+            
+            pdf = FPDF(orientation='L')
             pdf.add_page()
             
-            # Configuração de margens reduzidas (0.5cm)
-            pdf.set_margins(5, 5, 5)  # left, top, right em mm
-            pdf.set_auto_page_break(auto=True, margin=5)  # bottom margin
-            
-            # Ajuste da posição inicial
+            # Configuração de margens
+            pdf.set_margins(5, 5, 5)
+            pdf.set_auto_page_break(auto=True, margin=5)
             pdf.set_xy(5, 5)
             
-            pdf.set_font('Arial', 'B', 16)
-            
-            # Título
-            pdf.cell(0, 10, 'Relatório de Simulação de Investimentos', 0, 1, 'C')
-            pdf.ln(5)  # Reduzido o espaçamento
-            
-            # Dados da simulação
-            pdf.set_font('Arial', '', 12)
-            pdf.cell(0, 10, f'Data da simulação: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 1)
-            pdf.cell(0, 10, f'Valor inicial: R$ {valor_inicial.value}', 0, 1)
-            pdf.cell(0, 10, f'Prazo: {prazo.value} {tipo_prazo.value}', 0, 1)
-            pdf.cell(0, 10, f'Taxa DI: {taxa_di.value}% ao ano', 0, 1)
-            pdf.ln(10)
-            
-            # Resultados
+            # Título e dados iniciais
             pdf.set_font('Arial', 'B', 14)
-            pdf.cell(0, 10, 'Resultados da Simulação', 0, 1)
-            pdf.ln(5)
+            pdf.cell(0, 8, 'Relatório de Simulação de Investimentos', 0, 1, 'C')
+            
+            # Dados da simulação em duas colunas
+            pdf.set_font('Arial', '', 10)
+            pdf.cell(140, 6, f'Data: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 0)
+            pdf.cell(140, 6, f'Valor inicial: R$ {valor_inicial.value}', 0, 1)
+            pdf.cell(140, 6, f'Prazo: {prazo.value} {tipo_prazo.value}', 0, 0)
+            pdf.cell(140, 6, f'Taxa DI: {taxa_di.value}% ao ano', 0, 1)
             
             # Tabela de resultados
-            pdf.set_font('Arial', '', 10)
-            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'IOF', 'IR', 'IR %', 'Rendimento Líquido', 'Valor Total']
+            pdf.ln(3)
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 6, 'Resultados da Simulação', 0, 1)
             
-            # Larguras das colunas ajustadas para paisagem
+            # Definição das larguras das colunas
             col_widths = [35, 35, 35, 25, 30, 20, 35, 35]
             
             # Cabeçalho da tabela
+            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'IOF', 'IR', 'IR %', 'Rendimento Líquido', 'Valor Total']
+            pdf.set_font('Arial', '', 10)
             for i, header in enumerate(headers):
                 pdf.cell(col_widths[i], 10, header, 1, 0, 'C')
             pdf.ln()
@@ -448,31 +559,67 @@ def main(page: ft.Page):
                 except:
                     dados_grafico.append((tipo, 0))
             
-            pdf.ln(10)
+            pdf.ln(8)
             
-            # Adicionar gráfico
-            pdf.set_font('Arial', 'B', 14)
-            pdf.cell(0, 10, 'Gráfico Comparativo de Rendimentos', 0, 1)
-            pdf.ln(5)
+            # Calcular dados do Gross up primeiro
+            dias = int(prazo.value)
+            if tipo_prazo.value == "meses":
+                dias = dias * 30
+            elif tipo_prazo.value == "anos":
+                dias = dias * 365
             
-            # Configurações ajustadas do gráfico
-            bar_height = 12  # Altura reduzida
-            spacing = 5     # Espaçamento reduzido
+            ir_rate = calc.get_index_ir(dias) / 100
+            cdb_rate = float(taxa_cdb.value.replace(',', '.'))
+            lci_rate = float(taxa_lci.value.replace(',', '.'))
+            lci_equivalent = cdb_rate * (1 - ir_rate)
+            cdb_equivalent = lci_rate / (1 - ir_rate)
+            
+            # Título do Gross up
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 8, 'Análise de Taxas Equivalentes (Gross up)', 0, 1)
+            
+            # Informações do Gross up em duas colunas
+            pdf.set_font('Arial', '', 10)
+            pdf.cell(140, 6, f'Alíquota IR: {ir_rate*100:.1f}%', 0, 0)
+            pdf.cell(140, 6, f'Taxa DI: {taxa_di.value}% ao ano', 0, 1)
+            
+            # Taxa equivalente LCI/LCA
+            pdf.cell(140, 6, 'Taxa equivalente LCI/LCA:', 0, 0)
+            pdf.cell(140, 6, 'Taxa equivalente CDB:', 0, 1)
+            
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(140, 8, f'{lci_equivalent:.2f}% do CDI', 0, 0)
+            pdf.cell(140, 8, f'{cdb_equivalent:.2f}% do CDI', 0, 1)
+            
+            pdf.set_font('Arial', '', 8)
+            pdf.cell(140, 4, '(Taxa que a LCI/LCA precisaria ter para igualar o CDB)', 0, 0)
+            pdf.cell(140, 4, '(Taxa que o CDB precisaria ter para igualar a LCI/LCA)', 0, 1)
+            
+            # Linha divisória horizontal
+            pdf.ln(8)
+            pdf.line(5, pdf.get_y(), pdf.w - 5, pdf.get_y())
+            pdf.ln(8)
+            
+            # Gráfico Comparativo
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 8, 'Gráfico Comparativo de Rendimentos', 0, 1)
+            
+            # Configurações do gráfico otimizadas
+            bar_height = 12
+            spacing = 6
             max_percent = max(percent for _, percent in dados_grafico) if dados_grafico else 100
             
-            # Posicionamento ajustado do gráfico
+            # Desenhar barras
             y_position = pdf.get_y()
-            x_start = 10   # Posição inicial X
-            x_label = 45   # Posição do início da barra
-            x_end = 270    # Posição final (ajustada para paisagem)
+            x_start = 10
+            x_label = 45
+            x_end = pdf.w - 40  # Aumentado para usar mais espaço horizontal
             
             for tipo, percent in dados_grafico:
-                # Nome do investimento (ajustado para alinhar melhor)
                 pdf.set_font('Arial', '', 10)
                 pdf.text(x_start, y_position + bar_height/2, f"{tipo}:")
                 
-                # Barra
-                bar_width = (percent / max_percent) * (x_end - x_label - 40) if max_percent > 0 else 0
+                bar_width = (percent / max_percent) * (x_end - x_label - 20) if max_percent > 0 else 0
                 
                 # Cor da barra
                 if tipo == "Poupança":
@@ -482,39 +629,195 @@ def main(page: ft.Page):
                 else:
                     cor = COLORS['accent']
                 
-                # Converter cor hex para RGB
                 cor_hex = cor.lstrip('#')
                 r, g, b = tuple(int(cor_hex[i:i+2], 16) for i in (0, 2, 4))
                 pdf.set_fill_color(r, g, b)
                 
-                # Desenhar barra
                 if bar_width > 0:
                     pdf.rect(x_label, y_position, bar_width, bar_height, 'F')
                 
-                # Percentual (posicionado logo após a barra)
+                # Posicionar percentual após a barra
                 pdf.text(x_label + bar_width + 5, y_position + bar_height/2, f"{percent:.2f}%")
                 
                 y_position += bar_height + spacing
             
-            # Adicionar legenda
-            pdf.ln(bar_height + spacing)
+            # Adicionar espaço após o gráfico
+            pdf.ln(15)
+            
+            # Adicionar nova página para a tabela
+            pdf.add_page()
+            
+            # Título da tabela de rentabilidade mensal
+            pdf.set_font('Arial', 'B', 14)
+            pdf.cell(0, 10, 'Rentabilidade Mensal', 0, 1, 'C')
+            pdf.ln(5)
+            
+            # Calcular retornos mensais
+            valor = float(valor_inicial.value.replace('.', '').replace(',', '.'))
+            dias = int(prazo.value)
+            if tipo_prazo.value == "meses":
+                dias = dias * 30
+            elif tipo_prazo.value == "anos":
+                dias = dias * 365
+            
+            di = float(taxa_di.value.replace(',', '.'))
+            ir_rate = calc.get_index_ir(dias) / 100
+            
+            def calculate_monthly_returns(valor: float, index: float, dias: int, tipo: str, ir_rate: float = 0) -> list:
+                """Calcula os retornos mensais para um determinado investimento"""
+                monthly_returns = []
+                valor_atual = valor
+                
+                # Converter para índice diário
+                if tipo == "Poupança":
+                    daily_index = calc.get_index_poupanca(index)
+                else:
+                    daily_index = calc.get_index_lcx(index, float(taxa_di.value.replace(',', '.')))
+                
+                # Calcular para cada mês até completar o período
+                meses = math.ceil(dias / 30)
+                for mes in range(1, meses + 1):
+                    dias_no_mes = min(30, dias - ((mes-1) * 30))
+                    if dias_no_mes <= 0:
+                        break
+                        
+                    rendimento = calc.compound_interest(valor_atual, daily_index, dias_no_mes)
+                    
+                    # Aplicar IR se necessário
+                    if tipo == "CDB/RDB":
+                        rendimento_liquido = rendimento * (1 - ir_rate)
+                    else:
+                        rendimento_liquido = rendimento
+                        
+                    valor_atual += rendimento_liquido
+                    monthly_returns.append({
+                        'mes': mes,
+                        'rendimento': rendimento,
+                        'rendimento_liquido': rendimento_liquido,
+                        'valor_acumulado': valor_atual
+                    })
+                    
+                return monthly_returns
+            
+            poupanca_returns = calculate_monthly_returns(valor, di, dias, "Poupança")
+            cdb_returns = calculate_monthly_returns(valor, float(taxa_cdb.value.replace(',', '.')), dias, "CDB/RDB", ir_rate)
+            lci_returns = calculate_monthly_returns(valor, float(taxa_lci.value.replace(',', '.')), dias, "LCI/LCA")
+            
+            # Configurar cabeçalho da tabela
+            pdf.set_font('Arial', 'B', 8)
+            headers = ['Mês', 
+                      'Poupança (R$)', 'Acumulado', 
+                      'CDB/RDB (R$)', 'Acumulado',
+                      'LCI/LCA (R$)', 'Acumulado']
+            
+            # Calcular larguras das colunas
+            col_width = (pdf.w - 20) / len(headers)
+            
+            # Desenhar cabeçalho
+            for header in headers:
+                pdf.cell(col_width, 8, header, 1, 0, 'C')
+            pdf.ln()
+            
+            # Calcular número máximo de linhas que cabem na página
+            linha_altura = 6  # altura de cada linha em mm
+            espaco_disponivel = pdf.h - pdf.get_y() - 20  # 20mm de margem inferior
+            max_linhas_pagina = int(espaco_disponivel / linha_altura)
+            
+            # Determinar quais linhas mostrar
+            max_rows = max(len(poupanca_returns), len(cdb_returns), len(lci_returns))
+            if max_rows > max_linhas_pagina:
+                # Se não couber tudo, mostrar início e fim
+                linhas_cada_parte = max_linhas_pagina // 2
+                rows_to_show = list(range(linhas_cada_parte)) + ['...'] + list(range(max_rows - linhas_cada_parte, max_rows))
+            else:
+                rows_to_show = range(max_rows)
+            
+            # Preencher dados
             pdf.set_font('Arial', '', 8)
-            pdf.cell(0, 5, 'Obs.: Percentuais calculados sobre o valor inicial investido', 0, 1, 'L')
+            ultima_linha_normal = True
             
-            # Salvar PDF
-            filename = f'simulacao_investimentos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-            pdf.output(filename)
+            for i in rows_to_show:
+                if i == '...':
+                    # Linha de reticências
+                    for _ in range(len(headers)):
+                        pdf.cell(col_width, 6, "...", 1, 0, 'C')
+                    pdf.ln()
+                    ultima_linha_normal = False
+                    continue
+                
+                # Mês
+                pdf.cell(col_width, 6, str(i + 1), 1, 0, 'C')
+                
+                # Poupança
+                if i < len(poupanca_returns):
+                    pdf.cell(col_width, 6, f"R$ {poupanca_returns[i]['rendimento_liquido']:,.2f}", 1, 0, 'R')
+                    pdf.cell(col_width, 6, f"R$ {poupanca_returns[i]['valor_acumulado']:,.2f}", 1, 0, 'R')
+                else:
+                    pdf.cell(col_width, 6, "-", 1, 0, 'C')
+                    pdf.cell(col_width, 6, "-", 1, 0, 'C')
+                
+                # CDB/RDB
+                if i < len(cdb_returns):
+                    pdf.cell(col_width, 6, f"R$ {cdb_returns[i]['rendimento_liquido']:,.2f}", 1, 0, 'R')
+                    pdf.cell(col_width, 6, f"R$ {cdb_returns[i]['valor_acumulado']:,.2f}", 1, 0, 'R')
+                else:
+                    pdf.cell(col_width, 6, "-", 1, 0, 'C')
+                    pdf.cell(col_width, 6, "-", 1, 0, 'C')
+                
+                # LCI/LCA
+                if i < len(lci_returns):
+                    pdf.cell(col_width, 6, f"R$ {lci_returns[i]['rendimento_liquido']:,.2f}", 1, 0, 'R')
+                    pdf.cell(col_width, 6, f"R$ {lci_returns[i]['valor_acumulado']:,.2f}", 1, 0, 'R')
+                else:
+                    pdf.cell(col_width, 6, "-", 1, 0, 'C')
+                    pdf.cell(col_width, 6, "-", 1, 0, 'C')
+                
+                pdf.ln()
+                ultima_linha_normal = True
             
-            # Mostrar mensagem de sucesso
-            page.snack_bar = ft.SnackBar(content=ft.Text(f"PDF gerado com sucesso: {filename}"))
-            page.snack_bar.open = True
+            # Adicionar nota se houver linhas omitidas
+            if not ultima_linha_normal:
+                pdf.ln(5)
+                pdf.set_font('Arial', 'I', 8)
+                pdf.cell(0, 5, 'Nota: Algumas linhas intermediárias foram omitidas para melhor visualização', 0, 1, 'L')
+            
+            # Salvar PDF no local selecionado
+            pdf.output(file_path)
+            
+            # Mostrar diálogo de sucesso
+            success_dialog = ft.AlertDialog(
+                title=ft.Text("Arquivo Salvo com Sucesso"),
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("O arquivo PDF foi salvo em:"),
+                        ft.Text(file_path, selectable=True),  # Text com seleção habilitada
+                        ft.Text("Clique no caminho acima para copiar.", size=12, color=ft.colors.GREY_600),
+                    ]),
+                    padding=20,
+                ),
+                actions=[
+                    ft.TextButton("OK", on_click=lambda e: close_dialog(e, success_dialog))
+                ],
+            )
+            
+            page.dialog = success_dialog
+            success_dialog.open = True
             page.update()
             
         except Exception as e:
-            # Mostrar mensagem de erro
-            page.snack_bar = ft.SnackBar(content=ft.Text(f"Erro ao gerar PDF: {str(e)}"))
-            page.snack_bar.open = True
-            page.update()
+            show_snack_bar(page, f"Erro ao salvar PDF: {str(e)}")
+
+    def export_csv():
+        try:
+            save_csv_file(None)  # Chamar diretamente a função de salvamento
+        except Exception as e:
+            show_snack_bar(page, f"Erro ao gerar CSV: {str(e)}")
+
+    def export_pdf():
+        try:
+            save_pdf_file(None)  # Chamar diretamente a função de salvamento
+        except Exception as e:
+            show_snack_bar(page, f"Erro ao gerar PDF: {str(e)}")
 
     def calcular(e):
         try:
@@ -582,13 +885,9 @@ def main(page: ft.Page):
             page.update()
             
         except ValueError as ve:
-            page.snack_bar = ft.SnackBar(content=ft.Text(str(ve)))
-            page.snack_bar.open = True
-            page.update()
+            show_snack_bar(page, str(ve))
         except Exception as e:
-            page.snack_bar = ft.SnackBar(content=ft.Text(f"Erro nos cálculos: {str(e)}"))
-            page.snack_bar.open = True
-            page.update()
+            show_snack_bar(page, f"Erro nos cálculos: {str(e)}")
     
     # Botões de ação com cores corrigidas
     botoes = ft.Row([
@@ -600,6 +899,16 @@ def main(page: ft.Page):
                 bgcolor=COLORS['primary'],
                 color=ft.Colors.WHITE,
             )
+        ),
+        ft.ElevatedButton(
+            "Gross up",
+            icon=ft.Icons.COMPARE_ARROWS,
+            on_click=calculate_gross_up,
+            style=ft.ButtonStyle(
+                bgcolor=COLORS['primary'],
+                color=ft.Colors.WHITE,
+            ),
+            tooltip="Comparar taxas equivalentes entre CDB e LCI/LCA"
         ),
         ft.ElevatedButton(
             "Gráfico Comparativo",
@@ -664,6 +973,12 @@ def main(page: ft.Page):
     taxa_cdb.value = "100"
     taxa_lci.value = "100"
     tipo_prazo.value = "dias"
+
+    # Adicionar o FilePicker ao inicializar a página
+    page.overlay.extend([
+        ft.FilePicker(),
+    ])
+    page.update()
 
     page.add(
         ft.Container(
