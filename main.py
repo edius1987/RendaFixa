@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from typing import Optional
 import locale
 import math
+from fpdf import FPDF
+import os
+from datetime import datetime
 
 # Tentativa de configurar locale para formato brasileiro
 try:
@@ -116,7 +119,33 @@ class InvestmentCalculator:
 def main(page: ft.Page):
     page.title = "Calculadora de Renda Fixa"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.padding = 20
+    page.padding = 0  # Removido padding da página para a AppBar ocupar toda largura
+    
+    # Definição das cores personalizadas
+    COLORS = {
+        'primary': '#fb7968',    # Vermelho pastel
+        'secondary': '#f9c593',  # Laranja pastel
+        'background': '#fafad4', # Amarelo bem claro
+        'accent': '#b0d1b2',     # Verde claro
+        'dark_accent': '#89b2a2' # Verde escuro
+    }
+    
+    # Configuração do tema
+    page.bgcolor = COLORS['background']
+    
+    # AppBar personalizada
+    page.appbar = ft.AppBar(
+        leading=ft.Image(
+            src="/images/favicon.png",
+            width=40,
+            height=40,
+        ),
+        leading_width=40,
+        title=ft.Text("Calculadora de Renda Fixa", size=20, weight=ft.FontWeight.BOLD),
+        center_title=False,
+        bgcolor=COLORS['primary'],
+        color=ft.colors.WHITE,
+    )
     
     calc = FinanceCalculator()
     
@@ -179,17 +208,23 @@ def main(page: ft.Page):
             content=ft.Container(
                 content=ft.Column([
                     ft.Row([
-                        ft.Icon(icon),
+                        ft.Icon(icon, color=COLORS['primary']),
                         ft.Text(title, size=20, weight=ft.FontWeight.BOLD),
                     ]),
                     ft.Text("Valor Investido: R$ 0,00"),
                     ft.Text("Rendimento Bruto: R$ 0,00"),
                     ft.Text("Rendimento Líquido: R$ 0,00"),
                     ft.Text("Valor Total Líquido: R$ 0,00"),
-                    ft.ProgressBar(value=0, height=25),
+                    ft.ProgressBar(
+                        value=0,
+                        height=25,
+                        bgcolor=COLORS['secondary'],
+                        color=COLORS['primary']
+                    ),
                 ]),
-                padding=20
-            )
+                padding=20,
+                bgcolor=ft.colors.WHITE,
+            ),
         )
 
     def format_currency(value: float) -> str:
@@ -317,6 +352,63 @@ def main(page: ft.Page):
         chart_dialog.open = True
         page.update()
 
+    def export_pdf():
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            
+            # Configuração da fonte
+            pdf.set_font('Arial', 'B', 16)
+            
+            # Título
+            pdf.cell(0, 10, 'Relatório de Simulação de Investimentos', 0, 1, 'C')
+            pdf.ln(10)
+            
+            # Dados da simulação
+            pdf.set_font('Arial', '', 12)
+            pdf.cell(0, 10, f'Data da simulação: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 1)
+            pdf.cell(0, 10, f'Valor inicial: {valor_inicial.value}', 0, 1)
+            pdf.cell(0, 10, f'Prazo: {prazo.value} {tipo_prazo.value}', 0, 1)
+            pdf.cell(0, 10, f'Taxa DI: {taxa_di.value}% ao ano', 0, 1)
+            pdf.ln(10)
+            
+            # Resultados
+            pdf.set_font('Arial', 'B', 14)
+            pdf.cell(0, 10, 'Resultados da Simulação', 0, 1)
+            pdf.ln(5)
+            
+            # Função auxiliar para extrair dados dos cards
+            def get_card_data(card):
+                return [v.value.split(": ")[1] for v in card.content.content.controls[1:5]]
+            
+            # Tabela de resultados
+            pdf.set_font('Arial', '', 10)
+            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'Rendimento Líquido', 'Valor Total']
+            
+            # Larguras das colunas
+            col_widths = [40, 35, 35, 35, 35]
+            
+            # Cabeçalho da tabela
+            for i, header in enumerate(headers):
+                pdf.cell(col_widths[i], 10, header, 1)
+            pdf.ln()
+            
+            # Dados da tabela
+            for card, tipo in [(poupanca_card, "Poupança"), (cdb_card, "CDB/RDB"), (lci_card, "LCI/LCA")]:
+                valores = get_card_data(card)
+                pdf.cell(col_widths[0], 10, tipo, 1)
+                for i, valor in enumerate(valores):
+                    pdf.cell(col_widths[i+1], 10, valor, 1)
+                pdf.ln()
+            
+            # Salvar PDF
+            filename = f'simulacao_investimentos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+            pdf.output(filename)
+            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"PDF gerado com sucesso: {filename}")))
+            
+        except Exception as e:
+            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Erro ao gerar PDF: {str(e)}")))
+
     def calcular(e):
         try:
             valor = float(valor_inicial.value.replace('.', '').replace(',', '.'))
@@ -380,12 +472,29 @@ def main(page: ft.Page):
         ft.ElevatedButton(
             "Gráfico Comparativo",
             icon=ft.Icons.BAR_CHART,
-            on_click=show_chart_dialog
+            on_click=show_chart_dialog,
+            style=ft.ButtonStyle(
+                bgcolor=COLORS['accent'],
+                color=ft.colors.BLACK,
+            )
         ),
         ft.ElevatedButton(
             "Exportar CSV",
             icon=ft.Icons.DOWNLOAD,
-            on_click=lambda _: export_csv()
+            on_click=lambda _: export_csv(),
+            style=ft.ButtonStyle(
+                bgcolor=COLORS['secondary'],
+                color=ft.colors.BLACK,
+            )
+        ),
+        ft.ElevatedButton(
+            "Exportar PDF",
+            icon=ft.Icons.PICTURE_AS_PDF,
+            on_click=lambda _: export_pdf(),
+            style=ft.ButtonStyle(
+                bgcolor=COLORS['dark_accent'],
+                color=ft.colors.WHITE,
+            )
         ),
     ])
 
@@ -419,14 +528,14 @@ def main(page: ft.Page):
         ft.Container(
             content=ft.Column([
                 input_container,
-                ft.Divider(),
+                ft.Divider(color=COLORS['dark_accent']),
                 ft.Container(
                     content=ft.Column([
                         ft.Text("Simulação", size=24, weight=ft.FontWeight.BOLD),
                         ft.Text(
                             "Simulação da rentabilidade do seu investimento conforme o tipo de aplicação:",
                             size=16,
-                            color=ft.colors.GREY_700,
+                            color=COLORS['dark_accent'],
                         ),
                         results_container,
                     ]),
@@ -434,6 +543,7 @@ def main(page: ft.Page):
                 ),
             ]),
             padding=20,
+            bgcolor=COLORS['background'],
         )
     )
 
