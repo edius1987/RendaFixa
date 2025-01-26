@@ -144,7 +144,7 @@ def main(page: ft.Page):
         title=ft.Text("Calculadora de Renda Fixa", size=20, weight=ft.FontWeight.BOLD),
         center_title=False,
         bgcolor=COLORS['primary'],
-        color=ft.colors.WHITE,
+        color=ft.Colors.WHITE,
     )
     
     calc = FinanceCalculator()
@@ -223,7 +223,7 @@ def main(page: ft.Page):
                     ),
                 ]),
                 padding=20,
-                bgcolor=ft.colors.WHITE,
+                bgcolor=ft.Colors.WHITE,
             ),
         )
 
@@ -336,6 +336,11 @@ def main(page: ft.Page):
         
         chart.update()
 
+    def show_chart_dialog(e):
+        page.overlay.append(chart_dialog)
+        chart_dialog.open = True
+        page.update()
+
     def export_csv():
         try:
             with open('simulacao_investimentos.csv', 'w', encoding='utf-8') as f:
@@ -343,31 +348,36 @@ def main(page: ft.Page):
                 for card, tipo in [(poupanca_card, "Poupança"), (cdb_card, "CDB/RDB"), (lci_card, "LCI/LCA")]:
                     valores = [v.value.split(": ")[1] for v in card.content.content.controls[1:5]]
                     f.write(f"{tipo},{','.join(valores)}\n")
-            page.show_snack_bar(ft.SnackBar(content=ft.Text("Arquivo CSV gerado com sucesso!")))
+            page.snack_bar = ft.SnackBar(content=ft.Text("Arquivo CSV gerado com sucesso!"))
+            page.snack_bar.open = True
+            page.update()
         except Exception as e:
-            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Erro ao gerar CSV: {str(e)}")))
-
-    def show_chart_dialog(e):
-        page.dialog = chart_dialog
-        chart_dialog.open = True
-        page.update()
+            page.snack_bar = ft.SnackBar(content=ft.Text(f"Erro ao gerar CSV: {str(e)}"))
+            page.snack_bar.open = True
+            page.update()
 
     def export_pdf():
         try:
-            pdf = FPDF()
+            pdf = FPDF(orientation='L')  # 'L' para paisagem (landscape)
             pdf.add_page()
             
-            # Configuração da fonte
+            # Configuração de margens reduzidas (0.5cm)
+            pdf.set_margins(5, 5, 5)  # left, top, right em mm
+            pdf.set_auto_page_break(auto=True, margin=5)  # bottom margin
+            
+            # Ajuste da posição inicial
+            pdf.set_xy(5, 5)
+            
             pdf.set_font('Arial', 'B', 16)
             
             # Título
             pdf.cell(0, 10, 'Relatório de Simulação de Investimentos', 0, 1, 'C')
-            pdf.ln(10)
+            pdf.ln(5)  # Reduzido o espaçamento
             
             # Dados da simulação
             pdf.set_font('Arial', '', 12)
             pdf.cell(0, 10, f'Data da simulação: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 1)
-            pdf.cell(0, 10, f'Valor inicial: {valor_inicial.value}', 0, 1)
+            pdf.cell(0, 10, f'Valor inicial: R$ {valor_inicial.value}', 0, 1)
             pdf.cell(0, 10, f'Prazo: {prazo.value} {tipo_prazo.value}', 0, 1)
             pdf.cell(0, 10, f'Taxa DI: {taxa_di.value}% ao ano', 0, 1)
             pdf.ln(10)
@@ -377,60 +387,66 @@ def main(page: ft.Page):
             pdf.cell(0, 10, 'Resultados da Simulação', 0, 1)
             pdf.ln(5)
             
-            # Função auxiliar para extrair dados dos cards
-            def get_card_data(card):
-                dados = {}
-                for control in card.content.content.controls[1:5]:
-                    texto = control.value
-                    if "Valor Investido" in texto:
-                        dados['valor_investido'] = texto.split(": ")[1]
-                    elif "Rendimento Bruto" in texto:
-                        partes = texto.split("\n")
-                        dados['rendimento_bruto'] = partes[0].split(": ")[1]
-                        if len(partes) > 1:
-                            for parte in partes[1:]:
-                                if "IOF" in parte:
-                                    dados['iof'] = parte.split(": ")[1]
-                                elif "Imposto de Renda" in parte:
-                                    ir_parts = parte.split(": ")[1].split(" ")
-                                    dados['ir'] = ir_parts[0]
-                                    if len(ir_parts) > 1:
-                                        dados['ir_percentual'] = ir_parts[1].strip("()")
-                    elif "Rendimento Líquido" in texto:
-                        dados['rendimento_liquido'] = texto.split(": ")[1]
-                    elif "Valor Total Líquido" in texto:
-                        dados['valor_total'] = texto.split(": ")[1]
-                return dados
-            
             # Tabela de resultados
             pdf.set_font('Arial', '', 10)
-            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'IOF', 'IR', 'Rendimento Líquido', 'Valor Total']
+            headers = ['Tipo', 'Valor Investido', 'Rendimento Bruto', 'IOF', 'IR', 'IR %', 'Rendimento Líquido', 'Valor Total']
             
-            # Larguras das colunas
-            col_widths = [30, 30, 30, 20, 20, 30, 30]
+            # Larguras das colunas ajustadas para paisagem
+            col_widths = [35, 35, 35, 25, 30, 20, 35, 35]
             
             # Cabeçalho da tabela
             for i, header in enumerate(headers):
-                pdf.cell(col_widths[i], 10, header, 1)
+                pdf.cell(col_widths[i], 10, header, 1, 0, 'C')
             pdf.ln()
             
-            # Dados da tabela e coleta de dados para o gráfico
+            # Função para extrair valor numérico do texto
+            def extract_value(text):
+                if not text or text == '-':
+                    return '-'
+                return text.split(": ")[-1].strip()
+            
+            # Dados da tabela
             dados_grafico = []
             for card, tipo in [(poupanca_card, "Poupança"), (cdb_card, "CDB/RDB"), (lci_card, "LCI/LCA")]:
-                dados = get_card_data(card)
-                pdf.cell(col_widths[0], 10, tipo, 1)
-                pdf.cell(col_widths[1], 10, dados['valor_investido'], 1)
-                pdf.cell(col_widths[2], 10, dados['rendimento_bruto'], 1)
-                pdf.cell(col_widths[3], 10, dados.get('iof', '-'), 1)
-                pdf.cell(col_widths[4], 10, dados.get('ir', '-'), 1)
-                pdf.cell(col_widths[5], 10, dados['rendimento_liquido'], 1)
-                pdf.cell(col_widths[6], 10, dados['valor_total'], 1)
+                controls = card.content.content.controls
+                
+                # Valor Investido
+                valor_investido = extract_value(controls[1].value)
+                
+                # Rendimento Bruto e impostos
+                rendimento_info = controls[2].value.split("\n")
+                rendimento_bruto = extract_value(rendimento_info[0])
+                
+                iof = '-'
+                ir = '-'
+                ir_perc = '-'
+                
+                for info in rendimento_info[1:] if len(rendimento_info) > 1 else []:
+                    if "IOF" in info:
+                        iof = extract_value(info)
+                    elif "Imposto de Renda" in info:
+                        ir_parts = info.split(": ")[1].split(" ")
+                        ir = ir_parts[0]
+                        if len(ir_parts) > 1:
+                            ir_perc = ir_parts[1].strip("()")
+                
+                # Rendimento Líquido e Total
+                rendimento_liquido = extract_value(controls[3].value)
+                valor_total = extract_value(controls[4].value)
+                
+                # Escrever linha na tabela
+                dados = [tipo, valor_investido, rendimento_bruto, iof, ir, ir_perc, rendimento_liquido, valor_total]
+                for i, dado in enumerate(dados):
+                    pdf.cell(col_widths[i], 10, dado, 1, 0, 'C')
                 pdf.ln()
                 
                 # Coletar dados para o gráfico
-                valor_investido = float(dados['valor_investido'].replace('R$ ', '').replace('.', '').replace(',', '.'))
-                rendimento_liquido = float(dados['rendimento_liquido'].replace('R$ ', '').replace('.', '').replace(',', '.'))
-                dados_grafico.append((tipo, (rendimento_liquido / valor_investido) * 100))
+                try:
+                    valor = float(valor_investido.replace('R$ ', '').replace('.', '').replace(',', '.'))
+                    rendimento = float(rendimento_liquido.replace('R$ ', '').replace('.', '').replace(',', '.'))
+                    dados_grafico.append((tipo, (rendimento / valor) * 100))
+                except:
+                    dados_grafico.append((tipo, 0))
             
             pdf.ln(10)
             
@@ -439,53 +455,81 @@ def main(page: ft.Page):
             pdf.cell(0, 10, 'Gráfico Comparativo de Rendimentos', 0, 1)
             pdf.ln(5)
             
-            # Configurações do gráfico
-            max_width = 190
-            bar_height = 10
-            spacing = 5
-            max_percent = max(percent for _, percent in dados_grafico)
+            # Configurações ajustadas do gráfico
+            bar_height = 12  # Altura reduzida
+            spacing = 5     # Espaçamento reduzido
+            max_percent = max(percent for _, percent in dados_grafico) if dados_grafico else 100
             
-            # Cores do gráfico (usando as cores personalizadas)
-            colors = {
-                'Poupança': COLORS['primary'],
-                'CDB/RDB': COLORS['secondary'],
-                'LCI/LCA': COLORS['accent']
-            }
-            
-            # Desenhar barras
+            # Posicionamento ajustado do gráfico
             y_position = pdf.get_y()
+            x_start = 10   # Posição inicial X
+            x_label = 45   # Posição do início da barra
+            x_end = 270    # Posição final (ajustada para paisagem)
+            
             for tipo, percent in dados_grafico:
-                # Texto do tipo de investimento
+                # Nome do investimento (ajustado para alinhar melhor)
                 pdf.set_font('Arial', '', 10)
-                pdf.text(10, y_position + bar_height/2, f"{tipo}:")
+                pdf.text(x_start, y_position + bar_height/2, f"{tipo}:")
                 
-                # Barra de progresso
-                bar_width = (percent / max_percent) * 150
+                # Barra
+                bar_width = (percent / max_percent) * (x_end - x_label - 40) if max_percent > 0 else 0
+                
+                # Cor da barra
+                if tipo == "Poupança":
+                    cor = COLORS['primary']
+                elif tipo == "CDB/RDB":
+                    cor = COLORS['secondary']
+                else:
+                    cor = COLORS['accent']
                 
                 # Converter cor hex para RGB
-                cor_hex = colors[tipo].lstrip('#')
+                cor_hex = cor.lstrip('#')
                 r, g, b = tuple(int(cor_hex[i:i+2], 16) for i in (0, 2, 4))
                 pdf.set_fill_color(r, g, b)
                 
-                pdf.rect(50, y_position, bar_width, bar_height, 'F')
+                # Desenhar barra
+                if bar_width > 0:
+                    pdf.rect(x_label, y_position, bar_width, bar_height, 'F')
                 
-                # Percentual
-                pdf.text(50 + bar_width + 5, y_position + bar_height/2, f"{percent:.2f}%")
+                # Percentual (posicionado logo após a barra)
+                pdf.text(x_label + bar_width + 5, y_position + bar_height/2, f"{percent:.2f}%")
                 
                 y_position += bar_height + spacing
+            
+            # Adicionar legenda
+            pdf.ln(bar_height + spacing)
+            pdf.set_font('Arial', '', 8)
+            pdf.cell(0, 5, 'Obs.: Percentuais calculados sobre o valor inicial investido', 0, 1, 'L')
             
             # Salvar PDF
             filename = f'simulacao_investimentos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
             pdf.output(filename)
-            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"PDF gerado com sucesso: {filename}")))
+            
+            # Mostrar mensagem de sucesso
+            page.snack_bar = ft.SnackBar(content=ft.Text(f"PDF gerado com sucesso: {filename}"))
+            page.snack_bar.open = True
+            page.update()
             
         except Exception as e:
-            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Erro ao gerar PDF: {str(e)}")))
+            # Mostrar mensagem de erro
+            page.snack_bar = ft.SnackBar(content=ft.Text(f"Erro ao gerar PDF: {str(e)}"))
+            page.snack_bar.open = True
+            page.update()
 
     def calcular(e):
         try:
+            # Validação dos campos
+            if not valor_inicial.value or not prazo.value or not taxa_di.value or \
+               not taxa_cdb.value or not taxa_lci.value:
+                raise ValueError("Preencha todos os campos obrigatórios")
+
             valor = float(valor_inicial.value.replace('.', '').replace(',', '.'))
             dias = int(prazo.value)
+            
+            if valor <= 0:
+                raise ValueError("O valor inicial deve ser maior que zero")
+            if dias <= 0:
+                raise ValueError("O prazo deve ser maior que zero")
             
             # Converter período se necessário
             if tipo_prazo.value == "meses":
@@ -537,10 +581,16 @@ def main(page: ft.Page):
             
             page.update()
             
+        except ValueError as ve:
+            page.snack_bar = ft.SnackBar(content=ft.Text(str(ve)))
+            page.snack_bar.open = True
+            page.update()
         except Exception as e:
-            print(f"Erro nos cálculos: {e}")
+            page.snack_bar = ft.SnackBar(content=ft.Text(f"Erro nos cálculos: {str(e)}"))
+            page.snack_bar.open = True
+            page.update()
     
-    # Botões de ação
+    # Botões de ação com cores corrigidas
     botoes = ft.Row([
         ft.ElevatedButton(
             "Gráfico Comparativo",
@@ -548,7 +598,7 @@ def main(page: ft.Page):
             on_click=show_chart_dialog,
             style=ft.ButtonStyle(
                 bgcolor=COLORS['accent'],
-                color=ft.colors.BLACK,
+                color=ft.Colors.BLACK,
             )
         ),
         ft.ElevatedButton(
@@ -557,7 +607,7 @@ def main(page: ft.Page):
             on_click=lambda _: export_csv(),
             style=ft.ButtonStyle(
                 bgcolor=COLORS['secondary'],
-                color=ft.colors.BLACK,
+                color=ft.Colors.BLACK,
             )
         ),
         ft.ElevatedButton(
@@ -566,7 +616,7 @@ def main(page: ft.Page):
             on_click=lambda _: export_pdf(),
             style=ft.ButtonStyle(
                 bgcolor=COLORS['dark_accent'],
-                color=ft.colors.WHITE,
+                color=ft.Colors.WHITE,
             )
         ),
     ])
@@ -596,6 +646,15 @@ def main(page: ft.Page):
     # Atualização automática ao modificar campos
     for field in [valor_inicial, prazo, taxa_di, taxa_selic, taxa_cdb, taxa_lci, tipo_prazo]:
         field.on_change = calcular
+
+    # Valores iniciais para os campos
+    valor_inicial.value = "1000"
+    prazo.value = "360"
+    taxa_di.value = "12.65"
+    taxa_selic.value = "12.75"
+    taxa_cdb.value = "100"
+    taxa_lci.value = "100"
+    tipo_prazo.value = "dias"
 
     page.add(
         ft.Container(
