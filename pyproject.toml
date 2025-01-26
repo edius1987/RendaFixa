@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "rendafixa"
+version = "0.1.0"
+description = ""
+authors = ["edius1987 <ediusferreira@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flet = "^0.25.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

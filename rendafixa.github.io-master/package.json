@@ -1,0 +1,30 @@
+{
+  "name": "rendafixa",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test": "vitest",
+    "update-indexes": "node update-indexes.js"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxt/test-utils": "^3.15.1",
+    "@pinia-plugin-persistedstate/nuxt": "^1.1.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "jsdom": "^25.0.0",
+    "nuxt": "^3.14.1592",
+    "vite-plugin-vuetify": "^2.0.3",
+    "vitest": "^2.1.8",
+    "vuetify": "^3.7.6"
+  },
+  "dependencies": {
+    "@mdi/font": "^7.4.47",
+    "@pinia/nuxt": "^0.5.1",
+    "axios": "^1.7.9",
+    "nuxt-schema-org": "^4.0.4"
+  }
+}
