@@ -593,6 +593,15 @@ def main(page: ft.Page):
     # Botões de ação com cores corrigidas
     botoes = ft.Row([
         ft.ElevatedButton(
+            "Calcular",
+            icon=ft.Icons.CALCULATE,
+            on_click=calcular,
+            style=ft.ButtonStyle(
+                bgcolor=COLORS['primary'],
+                color=ft.Colors.WHITE,
+            )
+        ),
+        ft.ElevatedButton(
             "Gráfico Comparativo",
             icon=ft.Icons.BAR_CHART,
             on_click=show_chart_dialog,
